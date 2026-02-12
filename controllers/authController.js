@@ -1,5 +1,8 @@
 const { db, admin } = require("../config/firebase");
 const bcrypt = require('bcryptjs');
+const jwt = require("jsonwebtoken");
+
+const jwt_secret = process.env.JWT_SECRET;
 
 async function registerUser(req, res) {
     const { username, password, role, fullName } = req.body;
@@ -50,6 +53,54 @@ async function registerUser(req, res) {
     }
 }
 
+async function loginUser(req, res) {
+    const { username, password } = req.body;
+
+    try {
+        // 1. Searching user in collection
+        const userRef = db.collection('users').doc(username);
+        const userDoc = await userRef.get();
+
+        // Checking does user exist
+        if (!userDoc.exists) {
+            return res.status(404).json({ error: "User was not found" });
+        }
+        
+        const userData = userDoc.data();
+
+        // 2. Comparing passwords
+        const isPasswordValid = await bcrypt.compare(password, userData.password);
+
+        if (!isPasswordValid) {
+            return res.status(401).json({ error: "Incorrect password" });
+        }
+
+        // 3. Generating JWT token
+        const token = jwt.sign(
+            {
+                uid: userData.uid,
+                username: userData.username,
+                role: userData.role
+            },
+            jwt_secret, { expiresIn: '48h' }
+        );
+
+        res.json({
+            message: "Welcome !",
+            token,
+            user: {
+                username: userData.username,
+                fullName: userData.fullName,
+                role: userData.role
+            }
+        });
+    } catch (error) {
+        console.error("Login error: ", error);
+        res.status(500).json({ error: "Internal Server Error" });
+    }
+}
+
 module.exports = {
-    registerUser
+    registerUser,
+    loginUser
 }
