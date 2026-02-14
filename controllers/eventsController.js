@@ -84,7 +84,7 @@ async function getEventTypes (req, res) {
 
 async function createEvent (req, res) {
     try {
-        const { attributes, color, lat, lng, marker, type, typeId } = req.body.name;
+        const { attributes, color, lat, lng, marker, type, typeId } = req.body.attributes;
         const creatorRole = req.user.role;
 
         if (creatorRole !== "admin" && creatorRole !== "superadmin") {
@@ -128,9 +128,9 @@ async function createEvent (req, res) {
             createdAt: admin.firestore.FieldValue.serverTimestamp()
         };
 
-        await db.collection("events").doc(newId).set(newEvent);
+        await db.collection("events").doc(String(newId)).set(newEvent);
 
-        return res.status(201).json({ message: "Дохил шуд" });        
+        return res.status(201).json({ message: "Дохил шуд" });
     } catch (error) {
         console.error("server error ", error);
         res.status(500).json({ message: "Хатогии сервер" });
