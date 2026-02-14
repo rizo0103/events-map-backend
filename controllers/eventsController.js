@@ -1,5 +1,4 @@
-const admin = require('firebase-admin');
-const db = admin.firestore();
+const { admin, db } = require('../config/firebase');
 
 async function createEventType (req, res) {
     try {
@@ -137,8 +136,37 @@ async function createEvent (req, res) {
     }
 }
 
+async function getEvents (req, res) {
+        try {
+        const userRole = req.user.role;
+
+        if (userRole !== "superadmin" && userRole !== "admin") {
+            return res.status(403).json({ message: "У вас недостаточно прав" });
+        }
+
+        const collectionRef = db.collection("events"),
+            snapshot = await collectionRef.get();
+        
+        if (snapshot.empty) {
+            console.log("Документ events ёфт нашуд.");
+            return res.json({ message: "Документ eventTypes ёфт нашуд.", data: [] });
+        }
+
+        const documents = [];
+        snapshot.forEach(doc => {
+            documents.push(doc.data());
+        });
+
+        return res.status(200).json({ message: "Success", data: documents });
+    } catch (error) {
+        console.error("server error ", error);
+        res.status(500).json({ message: "Хатогии сервер" });
+    }
+}
+
 module.exports = {
     createEventType,
     getEventTypes,
     createEvent,
+    getEvents,
 };
