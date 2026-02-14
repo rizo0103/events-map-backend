@@ -3,8 +3,15 @@ const db = admin.firestore();
 
 async function createEventType (req, res) {
     try {
-        const { name, markerType, color, attributes } = req.body;
+        const { name, markerType, color, attributes } = req.body.name;
+        const creatorRole = req.user.role;
+
+        if (creatorRole !== "admin" && creatorRole !== "superadmin") {
+            return res.status(403).json({ message: "У вас недостаточно прав" });
+        }
+
         const idsRef = db.collection('ids').doc('ids');
+
 
         if (!name) {
             return res.status(400).json({ message: "Номи намуд ҳатмист!" });
@@ -40,7 +47,35 @@ async function createEventType (req, res) {
 
         await db.collection("eventTypes").doc(name).set(newType);
 
-        return res.status(201).json({ mmessage: "Дохил шуд" });
+        return res.status(201).json({ message: "Дохил шуд" });
+    } catch (error) {
+        console.error("server error ", error);
+        res.status(500).json({ message: "Хатогии сервер" });
+    }
+}
+
+async function getEventTypes (req, res) {
+    try {
+        const userRole = req.user.role;
+
+        if (userRole !== "superadmin" && userRole !== "admin") {
+            return res.status(403).json({ message: "У вас недостаточно прав" });
+        }
+
+        const collectionRef = db.collection("eventTypes"),
+            snapshot = await collectionRef.get();
+        
+        if (snapshot.empty) {
+            console.log("Документ eventTypes ёфт нашуд.");
+            return res.json({ message: "Документ eventTypes ёфт нашуд.", data: [] });
+        }
+
+        const documents = [];
+        snapshot.forEach(doc => {
+            documents.push(doc.data());
+        });
+
+        return res.status(200).json({ message: "Success", data: documents });
     } catch (error) {
         console.error("server error ", error);
         res.status(500).json({ message: "Хатогии сервер" });
@@ -49,4 +84,5 @@ async function createEventType (req, res) {
 
 module.exports = {
     createEventType,
+    getEventTypes,
 };
