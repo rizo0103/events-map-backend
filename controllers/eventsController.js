@@ -82,7 +82,63 @@ async function getEventTypes (req, res) {
     }
 }
 
+async function createEvent (req, res) {
+    try {
+        const { attributes, color, lat, lng, marker, type, typeId } = req.body.name;
+        const creatorRole = req.user.role;
+
+        if (creatorRole !== "admin" && creatorRole !== "superadmin") {
+            return res.status(403).json({ message: "У вас недостаточно прав" });
+        }
+
+        const idsRef = db.collection('ids').doc('ids');
+
+        if (!attributes) {
+            return res.status(400).json({ message: "Номи намуд ҳатмист!" });
+        }
+
+        if (!type) {
+            return res.status(400).json({ message: "Намуди маркер ҳатмист!" });
+        }
+
+        const newId = await db.runTransaction(async (t) => {
+            const idsDoc = await t.get(idsRef);
+
+            // If there is no field for eventTypes create new one
+            
+            let currentId = 1;
+            if (idsDoc.exists && idsDoc.data().eventsId) {
+                currentId = idsDoc.data().eventsId + 1;
+            }
+
+            t.set(idsRef, { eventsId: currentId }, { merge: true });
+
+            return currentId;
+        })
+
+        const newEvent = {
+            uid: newId,
+            attributes,
+            marker,
+            color,
+            type,
+            typeId,
+            lat,
+            lng,
+            createdAt: admin.firestore.FieldValue.serverTimestamp()
+        };
+
+        await db.collection("events").doc(newId).set(newEvent);
+
+        return res.status(201).json({ message: "Дохил шуд" });        
+    } catch (error) {
+        console.error("server error ", error);
+        res.status(500).json({ message: "Хатогии сервер" });
+    }
+}
+
 module.exports = {
     createEventType,
     getEventTypes,
+    createEvent,
 };
