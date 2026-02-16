@@ -1,39 +1,24 @@
 const { admin, db } = require('../config/firebase');
+const { getNextId } = require('../utils/common');
 
 async function createEventType (req, res) {
     try {
         const { name, markerType, color, attributes } = req.body.name;
         const creatorRole = req.user.role;
 
-        if (creatorRole !== "admin" && creatorRole !== "superadmin") {
+        if (!["admin", "superadmin"].includes(req.user.role)) {
             return res.status(403).json({ message: "У вас недостаточно прав" });
         }
-
-        const idsRef = db.collection('ids').doc('ids');
-
-
+        
         if (!name) {
             return res.status(400).json({ message: "Номи намуд ҳатмист!" });
         }
-
+        
         if (!markerType) {
             return res.status(400).json({ message: "Намуди маркер ҳатмист!" });
         }
-
-        const newId = await db.runTransaction(async (t) => {
-            const idsDoc = await t.get(idsRef);
-
-            // If there is no field for eventTypes create new one
-            
-            let currentId = 1;
-            if (idsDoc.exists && idsDoc.data().eventTypesId) {
-                currentId = idsDoc.data().eventTypesId + 1;
-            }
-
-            t.set(idsRef, { eventTypesId: currentId }, { merge: true });
-
-            return currentId;
-        })
+        
+        const newId = await getNextId('eventTypesId');
 
         const newType = {
             uid: newId,
@@ -81,58 +66,46 @@ async function getEventTypes (req, res) {
     }
 }
 
-async function createEvent (req, res) {
+async function createEvent(req, res) {
     try {
-        const { attributes, color, lat, lng, marker, type, typeId } = req.body.attributes;
-        const creatorRole = req.user.role;
-
-        if (creatorRole !== "admin" && creatorRole !== "superadmin") {
+        const { attributes, color, lat, lng, marker, type, typeId } = req.body; // Убрали .attributes
+        
+        // Проверка прав (можно вынести в отдельный middleware позже)
+        if (!["admin", "superadmin"].includes(req.user.role)) {
             return res.status(403).json({ message: "У вас недостаточно прав" });
         }
 
-        const idsRef = db.collection('ids').doc('ids');
-
-        if (!attributes) {
-            return res.status(400).json({ message: "Номи намуд ҳатмист!" });
-        }
-
-        if (!type) {
-            return res.status(400).json({ message: "Намуди маркер ҳатмист!" });
-        }
-
-        const newId = await db.runTransaction(async (t) => {
-            const idsDoc = await t.get(idsRef);
-
-            // If there is no field for eventTypes create new one
-            
-            let currentId = 1;
-            if (idsDoc.exists && idsDoc.data().eventsId) {
-                currentId = idsDoc.data().eventsId + 1;
-            }
-
-            t.set(idsRef, { eventsId: currentId }, { merge: true });
-
-            return currentId;
-        })
+        const newId = await getNextId('eventsId');
 
         const newEvent = {
             uid: newId,
-            attributes,
-            marker,
-            color,
-            type,
-            typeId,
-            lat,
-            lng,
+            attributes: attributes || {},
+            marker, color, type, typeId, lat, lng,
             createdAt: admin.firestore.FieldValue.serverTimestamp()
         };
 
         await db.collection("events").doc(String(newId)).set(newEvent);
-
-        return res.status(201).json({ message: "Дохил шуд" });
+        return res.status(201).json({ message: "Дохил шуд", uid: newId });
     } catch (error) {
         console.error("server error ", error);
         res.status(500).json({ message: "Хатогии сервер" });
+    }
+}
+
+// УДАЛЕНИЕ СОБЫТИЯ (Тот самый новый метод)
+async function deleteEvent(req, res) {
+    try {
+        const { uid } = req.params; // Получаем ID из URL: /api/events/:uid
+
+        if (!["admin", "superadmin"].includes(req.user.role)) {
+            return res.status(403).json({ message: "Доступ запрещен" });
+        }
+
+        await db.collection("events").doc(String(uid)).delete();
+        return res.status(200).json({ message: "Рӯйдод нест карда шуд" });
+    } catch (error) {
+        console.error("Delete error", error);
+        res.status(500).json({ message: "Хатогӣ ҳангоми нест кардан" });
     }
 }
 
@@ -169,4 +142,5 @@ module.exports = {
     getEventTypes,
     createEvent,
     getEvents,
+    deleteEvent
 };
