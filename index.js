@@ -5,6 +5,7 @@ require("dotenv").config();
 
 const authRotes = require('./routes/auth');
 const eventsRoutes = require('./routes/events.js');
+const usersRoutes = require('./routes/users.js');
 
 const app = express();
 
@@ -13,6 +14,7 @@ app.use(express.json());
 
 app.use('/api/auth', authRotes);
 app.use('/api/events', eventsRoutes);
+app.use('/api/users', usersRoutes);
 
 const PORT = process.env.PORT || 3000;
 

@@ -4,7 +4,6 @@ const { getNextId } = require('../utils/common');
 async function createEventType (req, res) {
     try {
         const { name, markerType, color, attributes } = req.body.name;
-        const creatorRole = req.user.role;
 
         if (!["admin", "superadmin"].includes(req.user.role)) {
             return res.status(403).json({ message: "У вас недостаточно прав" });
