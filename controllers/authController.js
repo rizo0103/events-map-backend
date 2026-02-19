@@ -1,8 +1,10 @@
 const { db, admin } = require("../config/firebase");
 const bcrypt = require('bcryptjs');
 const jwt = require("jsonwebtoken");
+const { generateTokens } = require("../utils/common");
 
 const jwt_secret = process.env.JWT_SECRET;
+const jwt_refresh_secret = process.env.JWT_REFRESH_SECRET;
 
 async function registerUser(req, res) {
     const { username, password, role, fullName } = req.body;
@@ -76,18 +78,14 @@ async function loginUser(req, res) {
         }
 
         // 3. Generating JWT token
-        const token = jwt.sign(
-            {
-                uid: userData.uid,
-                username: userData.username,
-                role: userData.role
-            },
-            jwt_secret, { expiresIn: '48h' }
-        );
+        const { accessToken, refreshToken } = await generateTokens(userData);
+        
+        await db.collection("users").doc(userData.username).update({ refreshToken });
 
-        res.json({
+        return res.json({
             message: "Welcome !",
-            token,
+            accessToken,
+            refreshToken,
             user: {
                 username: userData.username,
                 fullName: userData.fullName,
@@ -100,7 +98,32 @@ async function loginUser(req, res) {
     }
 }
 
+async function refresh(req, res) {
+    const { refreshToken } = req.body;
+    if (!refreshToken) return res.status(401).json({ message: "No refresh token" });
+
+    try {
+        const decoded = jwt.verify(refreshToken, jwt_refresh_secret);
+        const userDoc = await db.collection("users").doc(decoded.username).get();
+
+        if (!userDoc.exists || userDoc.data().refreshToken !== refreshToken) {
+            return res.status(403).json({ message: "Invalid refresh token" });
+        }
+
+        const userData = userDoc.data();
+        const { accessToken, refreshToken: newRefreshToken } = generateTokens(userData);
+
+        await userDoc.ref.update({ refreshToken: newRefreshToken });
+
+        return res.json({ accessToken, refreshToken: newRefreshToken });
+    } catch (error) {
+        console.error("Refresh error: ", error);
+        res.status(500).json({ error: "Internal Server Error" });
+    }
+}
+
 module.exports = {
     registerUser,
-    loginUser
+    loginUser,
+    refresh
 }
