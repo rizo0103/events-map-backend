@@ -18,7 +18,7 @@ async function getNextId(counterField) {
     });
 }
 
-async function generateTokens(user) {
+function generateTokens(user) {
     const accessToken = jwt.sign(
         { uid: user.uid, username: user.username, role: user.role },
         process.env.JWT_SECRET,

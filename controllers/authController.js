@@ -58,6 +58,8 @@ async function registerUser(req, res) {
 async function loginUser(req, res) {
     const { username, password } = req.body;
 
+    console.log("Login request received");
+
     try {
         // 1. Searching user in collection
         const userRef = db.collection('users').doc(username);
@@ -78,7 +80,7 @@ async function loginUser(req, res) {
         }
 
         // 3. Generating JWT token
-        const { accessToken, refreshToken } = await generateTokens(userData);
+        const { accessToken, refreshToken } = generateTokens(userData);
         
         await db.collection("users").doc(userData.username).update({ refreshToken });
 
