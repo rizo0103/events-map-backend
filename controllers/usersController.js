@@ -28,10 +28,17 @@ async function getUsers(req, res) {
 
 async function deleteUser(req, res) {
     try {
-        const { uid } = req.params;
+        const { username } = req.params;
+
+        // Проверка прав (можно вынести в отдельный middleware позже)
+        if (!["admin", "superadmin"].includes(req.user.role)) {
+            return res.status(403).json({ message: "Доступ запрещен" });
+        }
+
+        // Удаление документа
 
         const collectionRef = db.collection("users");
-        await collectionRef.doc(uid).delete();
+        await collectionRef.doc(username).delete();
 
         return res.status(200).json({ message: "Корбар нест карда шуд" });
     } catch (error) {
